@@ -245,11 +245,15 @@ async def get_tracking_status_data(start_time, end_time, vendor_type, master_shi
             for chunk_start, chunk_end in chunks
         ]
         
-        # Run vendor and carrier tasks in parallel
-        vendor_results, carrier_results = await asyncio.gather(
-            asyncio.gather(*vendor_tasks),
-            asyncio.gather(*carrier_tasks)
-        )
+        # Combine vendor and carrier tasks into a single list
+        all_tasks = vendor_tasks + carrier_tasks
+
+        # Run all tasks in parallel
+        results = await asyncio.gather(*all_tasks)
+
+        # Separate vendor and carrier results
+        vendor_results = results[:len(vendor_tasks)]
+        carrier_results = results[len(vendor_tasks):]
     else:  # For MOBILE_PHONE, only do vendor tracking
         tasks = [
             execute_query(chunk_start, chunk_end, 10000, "tracking_status", pipeline=pipeline)
