@@ -447,7 +447,13 @@ async def fetch_all_data(master_shipment_id=None, shipment_identifier=None, carr
                     
                     # Process and store vendor updates
                     vendor_updates = []
-                    for status in vendor_results:
+                    # Check if vendor_results is a tuple or list
+                    if isinstance(vendor_results, tuple):
+                        results_to_process = vendor_results[0]  # If tuple, take first element
+                    else:
+                        results_to_process = vendor_results  # If list, use as is
+                    
+                    for status in results_to_process:
                         status_body = status.get('body', '')
                         if status_body:
                             try:
@@ -456,7 +462,10 @@ async def fetch_all_data(master_shipment_id=None, shipment_identifier=None, carr
                             except json.JSONDecodeError:
                                 continue
                     
-                    tracking_data_response["tracking_data"] = {"vendor_updates": vendor_updates}
+                    tracking_data_response["tracking_data"] = {
+                        "vendor_updates": vendor_updates,
+                        "carrier_updates": []  # Always empty for MOBILE_PHONE
+                    }
                 
                 else:
                     print(f"\nUnsupported vendor type: {vendor_type}")
@@ -471,7 +480,7 @@ if __name__ == "__main__":
         # Use asyncio.run to execute the async function
                 # Example usage:
         # Case 1: Using master shipment id
-        # fetch_all_data(master_shipment_id="2b81ef2d-0762-420e-b1aa-85cecea86d55")
+        # fetch_all_data(master_shipment_id="6fc36462-15f1-45b4-921b-2816bc31b872")
         # fetch_all_data(master_shipment_id="68b82886-2ff5-42df-9bfc-c4cf2f65fc7f")
         
         # Case 2: Using shipment identifier and carrier identifier
