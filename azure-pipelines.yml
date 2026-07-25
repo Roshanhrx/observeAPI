@@ -1,0 +1,97 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- develop
+
+variables:
+  identityRef: 'system'
+  azureSubscription: '8eddf1ee-b4f4-4fc8-9578-5f1a7254c28c' 
+  resourceGroupName: 'RG_P44_DEV'        
+  environmentName01: 'containerAppsEnvironment-p44-dev-01'
+  registryServer: 'acrwizrstudiodev-d0etfufthgh0gucb.azurecr.io'
+  registryName: 'acrwizrstudiodev'
+  containerImageName: 'capp-wizr-observeapi-dev-01'
+  containerAppName01: 'capp-wizr-observeapi-dev-01-east'
+  acrUsername: 'acrwizrstudiodev'
+  # acrPassword: configure as a secret pipeline variable in Azure DevOps
+  cpuAllocation: '3.75'
+  memoryAllocation: '7.5Gi'
+  keyVaultName: 'wizr-connect-one-vault'
+  port: '3100'
+
+
+stages:
+
+- stage: DeployStage
+  jobs:
+    - job: ApprovalJob
+      pool: server
+      steps:
+
+    #   # Setup manual approval option
+        - task: ManualValidation@0
+          inputs:
+            notifyUsers: 'roshan.shibu@wizr.ai'
+            instructions: 'Please approve the deployment to proceed'
+          
+
+    - job: DeployJob
+      dependsOn: ApprovalJob
+      pool:
+        vmImage: ubuntu-latest
+
+      steps:
+      # set the secret of vault as secret in continer app and deploy the container app
+
+      - task: AzureCLI@2
+        displayName: 'Build and Push image to registry'
+        inputs:
+          azureSubscription: '$(azureSubscription)'
+          scriptType: 'bash'
+          scriptLocation: 'inlineScript'
+          inlineScript: |
+            az acr build -t $(containerImageName):$(Build.BuildId) -r $(registryName) --no-logs .
+
+
+      - task: AzureCLI@2
+        displayName: 'Deploy Container App'
+        inputs:
+          azureSubscription: '$(azureSubscription)'
+          scriptType: 'bash'
+          scriptLocation: 'inlineScript'
+          inlineScript: |
+            az containerapp up \
+              --name $(containerAppName01) \
+              --resource-group $(resourceGroupName) \
+              --environment $(environmentName01) \
+              --image $(registryServer)/$(containerImageName):$(Build.BuildId) \
+              --registry-server $(registryServer) \
+              --registry-username $(acrUsername) \
+              --registry-password $(acrPassword) \
+              --target-port $(port) \
+              --ingress external
+            
+            az containerapp update \
+              --name $(containerAppName01) \
+              --container-name $(containerAppName01) \
+              --resource-group $(resourceGroupName) \
+              --cpu $(cpuAllocation) \
+              --memory $(memoryAllocation)
+
+
+      # Configure Observe credentials as Container App secrets / env vars in Azure
+      - task: AzureCLI@2
+        displayName: 'Update env variables for Container App'
+        inputs:
+          azureSubscription: '$(azureSubscription)'
+          scriptType: 'bash'
+          scriptLocation: 'inlineScript'
+          inlineScript: |
+            az containerapp update \
+              --name $(containerAppName01) \
+              --container-name $(containerAppName01) \
+              --resource-group $(resourceGroupName) \
+              --set-env-vars "CUSTOM_RESPONSE_TYPE=application/json"
