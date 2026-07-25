@@ -2,17 +2,24 @@ import aiohttp
 import asyncio
 import json
 import datetime
+import os
 import time
 from datetime import timezone
 
-# Credentials
-CUSTOMER_ID = "140271604703"
-ACCESS_KEY = "-sco0vSc682wt7V2mdxk1Sg3sSaeamSj"
+def _require_env(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
+        raise EnvironmentError(
+            f"Missing required environment variable: {name}. "
+            f"Set it before running this script."
+        )
+    return value
 
-# Base URL format
+CUSTOMER_ID = _require_env("OBSERVE_CUSTOMER_ID")
+ACCESS_KEY = _require_env("OBSERVE_ACCESS_KEY")
+
 base_url = f"https://{CUSTOMER_ID}.observeinc.com/v1/"
 
-# Headers
 headers = {
     "Authorization": f"Bearer {CUSTOMER_ID} {ACCESS_KEY}",
     "Content-Type": "application/json",
